@@ -1,3 +1,4 @@
+
 from flask import Flask, request
 import requests
 import json
@@ -5,25 +6,29 @@ import json
 app = Flask(__name__)
 
 TOKEN = "8992836993:AAGNiuBJGt3HuMyPjtMIQ4GG8XwO8XXl2bE"
+BIKASH = "01829244034"
 
-# পণ্যের তালিকা
 PRODUCTS = {
-    "night_socket": {"name": "🔌 Night Socket Light", "price": 1920},
-    "rose_yellow": {"name": "🌹 Rose Tree (Yellow)", "price": 2000},
-    "rose_pink": {"name": "🌹 Rose Tree (Pink)", "price": 2000},
-    "acrylic_3d": {"name": "✨ 3D Acrylic Lamp", "price": 1200},
-    "spiral_led": {"name": "🌀 Spiral LED Lamp", "price": 2400},
-    "lighthouse": {"name": "🗼 Lighthouse Lamp", "price": 800},
-    "neon": {"name": "🎆 Neon Light", "price": 1200},
-    "tree_branch": {"name": "🌳 Tree Branch Lights", "price": 1200},
-    "moon_head": {"name": "🌙 Moon Head Lights", "price": 560}
+    "neon": {"name": "🎆 Neon Light", "price": 1200, "img": "https://ibb.co/prLdYKtT"},
+    "spiral": {"name": "🌀 Spiral LED", "price": 2400, "img": "https://ibb.co/WZjL6kL"},
+    "rose_y": {"name": "🌹 Rose Yellow", "price": 2000, "img": "https://ibb.co/zHVwDW92"},
+    "rose_p": {"name": "🌹 Rose Pink", "price": 2000, "img": "https://ibb.co/8nxCrMFg"},
+    "acrylic": {"name": "✨ 3D Lamp", "price": 1200, "img": "https://ibb.co/JFKHWZwS"},
+    "house": {"name": "🗼 Lighthouse", "price": 800, "img": "https://ibb.co/XZtYZHp3"},
+    "night": {"name": "🔌 Night Socket", "price": 1920, "img": "https://ibb.co/Hf3938xG"},
+    "tree": {"name": "🌳 Tree Branch", "price": 1200, "img": "https://ibb.co/twS4gwZ2"},
+    "moon1": {"name": "🌙 Moon Lamp 1", "price": 560, "img": "https://ibb.co/sd1qJHjm"},
+    "moon2": {"name": "🌙 Moon Lamp 2", "price": 560, "img": "https://ibb.co/4n0hsVCq"},
+    "table": {"name": "💡 Table Lamp", "price": 560, "img": "https://ibb.co/pB8tVFnf"},
 }
 
-user_state = {}
+state = {}
 
-def send_message(chat_id, text):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    requests.post(url, json={'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'})
+def send_msg(cid, txt, img=None):
+    if img:
+        requests.post(f"https://api.telegram.org/bot{TOKEN}/sendPhoto", json={'chat_id': cid, 'photo': img, 'caption': txt, 'parse_mode': 'HTML'})
+    else:
+        requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", json={'chat_id': cid, 'text': txt, 'parse_mode': 'HTML'})
 
 @app.route('/api/index', methods=['POST'])
 def webhook():
@@ -31,72 +36,79 @@ def webhook():
     if not data or 'message' not in data:
         return {'ok': True}
     
-    message = data['message']
-    chat_id = message['chat']['id']
-    user_id = message['from']['id']
-    user_name = message['from'].get('first_name', 'বন্ধু')
-    text = message.get('text', '').lower()
+    msg = data['message']
+    cid = msg['chat']['id']
+    uid = msg['from']['id']
+    name = msg['from'].get('first_name', 'বন্ধু')
+    txt = msg.get('text', '').lower()
     
-    if text == '/start':
-        msg = f"👋 আস্সালামু আলাইকুম {user_name}!\n\n🎉 LOZE BD এ স্বাগতম!\n\n/products - সব পণ্য\n/order - অর্ডার করুন\n/contact - যোগাযোগ"
-        send_message(chat_id, msg)
+    if txt == '/start' or uid not in state:
+        send_msg(cid, f"👋 আস্সালামু আলাইকুম {name}!\n\n🎉 LOZE BD এ স্বাগতম!\n\n💡 পণ্য অর্ডার করুন")
+        for p in PRODUCTS.values():
+            send_msg(cid, f"{p['name']}\n💰 {p['price']} টাকা\n\nঅর্ডার: অর্ডার লিখুন", p['img'])
     
-    elif text == '/products':
-        msg = "<b>💡 আমাদের পণ্য:</b>\n\n"
-        for idx, (key, product) in enumerate(PRODUCTS.items(), 1):
-            msg += f"{idx}. {product['name']}\n   দাম: <b>{product['price']} টাকা</b>\n\n"
-        send_message(chat_id, msg)
-    
-    elif text == '/order':
-        user_state[user_id] = {'step': 'waiting_product'}
-        send_message(chat_id, "🛒 অর্ডার করুন\n\nপণ্যের নাম বলুন:\nউদাহরণ: night socket, rose tree")
-    
-    elif text == '/contact':
-        send_message(chat_id, "📱 WhatsApp: 01829244034\nBkash: 01829244034")
+    elif 'অর্ডার' in txt or 'order' in txt:
+        state[uid] = {'step': 'product'}
+        send_msg(cid, "🛒 পণ্য বলুন (যেমন: spiral, rose, night)")
     
     else:
-        if user_id in user_state:
-            state = user_state[user_id]
-            if state.get('step') == 'waiting_product':
-                product_found = None
-                for key, product in PRODUCTS.items():
-                    if key.replace('_', ' ') in text:
-                        product_found = key
+        if uid in state:
+            s = state[uid]
+            if s['step'] == 'product':
+                prod = None
+                for k, p in PRODUCTS.items():
+                    if k in txt or p['name'].lower() in txt:
+                        prod = k
                         break
+                if prod:
+                    state[uid] = {'step': 'name', 'prod': prod, 'data': PRODUCTS[prod]}
+                    send_msg(cid, f"✅ {PRODUCTS[prod]['name']}\n💰 {PRODUCTS[prod]['price']} টাকা\n\nনাম বলুন:", PRODUCTS[prod]['img'])
+            
+            elif s['step'] == 'name':
+                state[uid]['name'] = txt
+                state[uid]['step'] = 'phone'
+                send_msg(cid, f"✅ নাম: {txt}\n\nফোন বলুন:")
+            
+            elif s['step'] == 'phone':
+                state[uid]['phone'] = txt
+                state[uid]['step'] = 'addr'
+                send_msg(cid, f"✅ ফোন: {txt}\n\nঠিকানা বলুন:")
+            
+            elif s['step'] == 'addr':
+                prod = state[uid]['data']
+                total = prod['price']
+                adv = 200
+                remain = total - adv
                 
-                if product_found:
-                    user_state[user_id] = {'step': 'waiting_name', 'product_key': product_found}
-                    send_message(chat_id, f"✅ পণ্য: {PRODUCTS[product_found]['name']}\nদাম: {PRODUCTS[product_found]['price']} টাকা\n\nনাম বলুন:")
-            
-            elif state.get('step') == 'waiting_name':
-                user_state[user_id]['customer_name'] = text
-                user_state[user_id]['step'] = 'waiting_phone'
-                send_message(chat_id, f"✅ নাম: {text}\n\nফোন নম্বর বলুন:")
-            
-            elif state.get('step') == 'waiting_phone':
-                user_state[user_id]['customer_phone'] = text
-                user_state[user_id]['step'] = 'waiting_address'
-                send_message(chat_id, f"✅ ফোন: {text}\n\nঠিকানা বলুন:")
-            
-            elif state.get('step') == 'waiting_address':
-                state = user_state[user_id]
-                product = PRODUCTS[state['product_key']]
-                msg = f"""✅ অর্ডার কনফার্ম!
+                order_msg = f"""
+✅ অর্ডার কনফার্ম!
 
-📦 পণ্য: {state['product_name'] if 'product_name' in state else product['name']}
-👤 নাম: {state['customer_name']}
-📱 ফোন: {state['customer_phone']}
-📍 ঠিকানা: {text}
+📦 {prod['name']}
+👤 {state[uid]['name']}
+📱 {state[uid]['phone']}
+📍 {txt}
 
-💰 দাম: {product['price']} টাকা
+💰 মোট: {total} টাকা
+💳 Advance: {adv} টাকা (Bikash)
+⏳ বাকি: {remain} টাকা (ডেলিভারিতে)
 
-📱 WhatsApp: 01829244034
-💳 Bkash: 01829244034"""
-                send_message(chat_id, msg)
-                del user_state[user_id]
+📱 Bikash: {BIKASH}
+
+ধন্যবাদ! 🙏
+                """
+                send_msg(cid, order_msg)
+                
+                # WhatsApp এ পাঠান (আপনার WhatsApp বটে এই মেসেজ আসবে)
+                wa_msg = f"অর্ডার: {prod['name']} | {state[uid]['name']} | {state[uid]['phone']} | {txt} | Advance: {adv} টাকা"
+                print(wa_msg)  # Log এ দেখা যাবে
+                
+                del state[uid]
     
     return {'ok': True}
 
 @app.route('/', methods=['GET'])
 def home():
-    return 'Bot is running!'
+    return '🤖 LOZE BD Bot is running!'
+
+if __name__ == '__main__':
+    app.run()
