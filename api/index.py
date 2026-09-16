@@ -46,7 +46,6 @@ def webhook():
     if not data:
         return {'ok': True}
     
-    # Button Click
     if 'callback_query' in data:
         query = data['callback_query']
         cid = query['message']['chat']['id']
@@ -63,7 +62,7 @@ def webhook():
             state[uid] = {'step': 'select_product', 'name': name}
             send_msg(cid, "🛒 কোন পণ্য অর্ডার করবেন?\n\n(নম্বর বলুন: 1-11)\n\nউদাহরণ: 1")
         
-        elif action == 'advance_paid':
+        elif action == 'screenshot_received':
             s = state[uid]
             total = s['price']
             adv = 200
@@ -78,7 +77,7 @@ def webhook():
 📍 ঠিকানা: {s['address']}
 
 💰 মোট দাম: {total} টাকা
-✅ Advance দেওয়া হয়েছে: 200 টাকা
+✅ Advance পেমেন্ট: 200 টাকা
 ⏳ বাকি (ডেলিভারিতে): {remain} টাকা
 
 ধন্যবাদ! 🙏
@@ -86,12 +85,8 @@ def webhook():
             send_msg(cid, msg_txt)
             del state[uid]
         
-        elif action == 'advance_not_paid':
-            send_msg(cid, "❌ Advance পাঠান তারপর অর্ডার confirm করা যাবে\n\n📱 Bikash: 01829244034")
-        
         return {'ok': True}
     
-    # Message
     if 'message' not in data:
         return {'ok': True}
     
@@ -101,21 +96,32 @@ def webhook():
     name = msg['from'].get('first_name', 'বন্ধু')
     txt = msg.get('text', '').lower().strip()
     
-    # প্রথমবার এলে welcome message দেখান
     if uid not in shown_welcome:
-        send_button_msg(cid, f"👋 আস্সালামু আলাইকুম {name}!\n\n🎉 LOZE BD এ স্বাগতম!")
+        welcome_txt = f"""
+👋 আস্সালামু আলাইকুম {name}!
+
+🎉 LOZE BD এ স্বাগতম!
+
+📋 আপনার Chat ID: <code>{cid}</code>
+        """
+        send_button_msg(cid, welcome_txt)
         shown_welcome[uid] = True
         return {'ok': True}
     
-    # /start
     if txt == '/start':
-        send_button_msg(cid, f"👋 আস্সালামু আলাইকুম {name}!\n\n🎉 LOZE BD এ স্বাগতম!")
+        welcome_txt = f"""
+👋 আস্সালামু আলাইকুম {name}!
+
+🎉 LOZE BD এ স্বাগতম!
+
+📋 আপনার Chat ID: <code>{cid}</code>
+        """
+        send_button_msg(cid, welcome_txt)
     
     else:
         if uid in state:
             s = state[uid]
             
-            # পণ্য সিলেক্ট
             if s['step'] == 'select_product':
                 try:
                     num = int(txt)
@@ -130,22 +136,19 @@ def webhook():
                 except:
                     send_msg(cid, "❌ নম্বর বলুন (যেমন: 1, 2, 3...)")
             
-            # নাম
             elif s['step'] == 'customer_name':
                 state[uid]['customer_name'] = txt
                 state[uid]['step'] = 'phone'
                 send_msg(cid, f"✅ নাম: {txt}\n\nফোন নম্বর বলুন:")
             
-            # ফোন
             elif s['step'] == 'phone':
                 state[uid]['phone'] = txt
                 state[uid]['step'] = 'address'
                 send_msg(cid, f"✅ ফোন: {txt}\n\nঠিকানা বলুন:")
             
-            # ঠিকানা
             elif s['step'] == 'address':
                 state[uid]['address'] = txt
-                state[uid]['step'] = 'advance_payment'
+                state[uid]['step'] = 'screenshot'
                 
                 advance_msg = f"""
 আপনার অর্ডার প্রায় সম্পূর্ণ!
@@ -157,11 +160,31 @@ def webhook():
 
 📱 <b>Bikash নম্বর: {BIKASH}</b>
 
-Advance পাঠিয়ে "হ্যাঁ" বাটন ক্লিক করুন।
+✅ <b>200 টাকা পাঠিয়ে এখানে screenshot পাঠান</b>
                 """
-                buttons = [[{"text": "✅ হ্যাঁ, পাঠিয়েছি", "callback_data": "advance_paid"}],
-                          [{"text": "❌ এখনো পাঠাইনি", "callback_data": "advance_not_paid"}]]
-                send_button_msg(cid, advance_msg, buttons)
+                send_msg(cid, advance_msg)
+            
+            elif s['step'] == 'screenshot':
+                total = s['price']
+                adv = 200
+                remain = total - adv
+                
+                msg_txt = f"""
+✅ অর্ডার কনফার্ম!
+
+📦 পণ্য #: {s['product_num']}
+👤 নাম: {s['customer_name']}
+📱 ফোন: {s['phone']}
+📍 ঠিকানা: {s['address']}
+
+💰 মোট দাম: {total} টাকা
+✅ Advance পেমেন্ট: 200 টাকা ✓
+⏳ বাকি (ডেলিভারিতে): {remain} টাকা
+
+ধন্যবাদ! 🙏
+                """
+                send_msg(cid, msg_txt)
+                del state[uid]
     
     return {'ok': True}
 
