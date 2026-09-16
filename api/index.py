@@ -5,19 +5,59 @@ app = Flask(__name__)
 
 TOKEN = "8992836993:AAGNiuBJGt3HuMyPjtMIQ4GG8XwO8XXl2bE"
 BIKASH = "01829244034"
+OWNER_CHAT_ID = 7216817853
 
 PRODUCTS = {
-    "p1": {"img": "https://ibb.co/prLdYKtT", "price": 1920},
-    "p2": {"img": "https://ibb.co/WZjL6kL", "price": 2400},
-    "p3": {"img": "https://ibb.co/zHVwDW92", "price": 2000},
-    "p4": {"img": "https://ibb.co/8nxCrMFg", "price": 2000},
-    "p5": {"img": "https://ibb.co/JFKHWZwS", "price": 1200},
-    "p6": {"img": "https://ibb.co/XZtYZHp3", "price": 800},
-    "p7": {"img": "https://ibb.co/Hf3938xG", "price": 1200},
-    "p8": {"img": "https://ibb.co/twS4gwZ2", "price": 1200},
-    "p9": {"img": "https://ibb.co/sd1qJHjm", "price": 560},
-    "p10": {"img": "https://ibb.co/4n0hsVCq", "price": 560},
-    "p11": {"img": "https://ibb.co/pB8tVFnf", "price": 560},
+    "p1": {
+        "name": "Eiffel Tower 3D",
+        "images": ["https://ibb.co.com/0p4p0Sxs"],
+        "price": 720
+    },
+    "p2": {
+        "name": "LED Table Lamp",
+        "images": ["https://ibb.co.com/MwXyhKT", "https://ibb.co.com/vMW3tD2", "https://ibb.co.com/NgFYSFYL"],
+        "price": 1920
+    },
+    "p3": {
+        "name": "LED Night Light",
+        "images": ["https://ibb.co.com/dy7pRWf"],
+        "price": 400
+    },
+    "p4": {
+        "name": "Rose Light",
+        "images": ["https://ibb.co.com/gX0Rmpw", "https://ibb.co.com/VppG7zCS"],
+        "price": 1200
+    },
+    "p5": {
+        "name": "Cylindrical Wooden Table Lamp",
+        "images": ["https://ibb.co.com/5xk3qg21"],
+        "price": 2000
+    },
+    "p6": {
+        "name": "Moon Lamp",
+        "images": ["https://ibb.co.com/6JvP94ns"],
+        "price": 2560
+    },
+    "p7": {
+        "name": "Tree Light",
+        "images": ["https://ibb.co.com/pjJz93Cj"],
+        "price": 1600
+    },
+    "p8": {
+        "name": "Moon LED Table Lamps",
+        "images": ["https://ibb.co.com/dwrMdc1R"],
+        "price": 1440
+    },
+    "p9": {
+        "name": "Eiffel Tower 3D Illusion",
+        "images": ["https://ibb.co.com/s8QshYv", "https://ibb.co.com/WWNYGfwP", "https://ibb.co.com/v45QbnCP", "https://ibb.co.com/WmS0RR3", "https://ibb.co.com/HTfWGQ5w"],
+        "price": 720
+    },
+    "p10": {
+        "name": "Night Light with Dusk to Dawn Sensors",
+        "images": ["https://ibb.co.com/HL4989SS"],
+        "price": 520
+    }
 }
 
 state = {}
@@ -55,34 +95,62 @@ def webhook():
         
         if action == 'products':
             send_msg(cid, "💡 আমাদের পণ্য:")
-            for p in PRODUCTS.values():
-                send_msg(cid, " ", p['img'])
+            for key, product in PRODUCTS.items():
+                for img in product['images']:
+                    send_msg(cid, f"{product['name']}\n💰 {product['price']} টাকা", img)
         
         elif action == 'order':
-            state[uid] = {'step': 'select_product', 'name': name}
-            send_msg(cid, "🛒 কোন পণ্য অর্ডার করবেন?\n\n(নম্বর বলুন: 1-11)\n\nউদাহরণ: 1")
+            state[uid] = {'step': 'select_product', 'name': name, 'cid': cid}
+            send_msg(cid, "🛒 কোন পণ্য অর্ডার করবেন?\n\n(নম্বর বলুন: 1-10)\n\nউদাহরণ: 1")
         
-        elif action == 'screenshot_received':
+        return {'ok': True}
+    
+    if 'message' in data and 'photo' in data['message']:
+        msg = data['message']
+        cid = msg['chat']['id']
+        uid = msg['from']['id']
+        
+        if uid in state and state[uid]['step'] == 'screenshot':
             s = state[uid]
             total = s['price']
             adv = 200
             remain = total - adv
             
-            msg_txt = f"""
+            customer_msg = f"""
 ✅ অর্ডার কনফার্ম!
 
-📦 পণ্য #: {s['product_num']}
+📦 পণ্য: {s['product_name']}
 👤 নাম: {s['customer_name']}
 📱 ফোন: {s['phone']}
 📍 ঠিকানা: {s['address']}
 
 💰 মোট দাম: {total} টাকা
-✅ Advance পেমেন্ট: 200 টাকা
+✅ Advance পেমেন্ট: 200 টাকা ✓
 ⏳ বাকি (ডেলিভারিতে): {remain} টাকা
 
 ধন্যবাদ! 🙏
             """
-            send_msg(cid, msg_txt)
+            send_msg(cid, customer_msg)
+            
+            owner_msg = f"""
+📋 নতুন অর্ডার!
+
+📦 পণ্য: {s['product_name']}
+👤 নাম: {s['customer_name']}
+📱 ফোন: {s['phone']}
+📍 ঠিকানা: {s['address']}
+
+💰 মোট দাম: {total} টাকা
+💳 Advance: 200 টাকা
+⏳ বাকি: {remain} টাকা
+
+📸 Bikash Screenshot ↓
+            """
+            send_msg(OWNER_CHAT_ID, owner_msg)
+            
+            photo_id = msg['photo'][-1]['file_id']
+            send_msg(OWNER_CHAT_ID, "Screenshot:", photo_id)
+            
             del state[uid]
         
         return {'ok': True}
@@ -97,26 +165,12 @@ def webhook():
     txt = msg.get('text', '').lower().strip()
     
     if uid not in shown_welcome:
-        welcome_txt = f"""
-👋 আস্সালামু আলাইকুম {name}!
-
-🎉 LOZE BD এ স্বাগতম!
-
-📋 আপনার Chat ID: <code>{cid}</code>
-        """
-        send_button_msg(cid, welcome_txt)
+        send_button_msg(cid, f"👋 আস্সালামু আলাইকুম {name}!\n\n🎉 LOZE BD এ স্বাগতম!")
         shown_welcome[uid] = True
         return {'ok': True}
     
     if txt == '/start':
-        welcome_txt = f"""
-👋 আস্সালামু আলাইকুম {name}!
-
-🎉 LOZE BD এ স্বাগতম!
-
-📋 আপনার Chat ID: <code>{cid}</code>
-        """
-        send_button_msg(cid, welcome_txt)
+        send_button_msg(cid, f"👋 আস্সালামু আলাইকুম {name}!\n\n🎉 LOZE BD এ স্বাগতম!")
     
     else:
         if uid in state:
@@ -125,14 +179,16 @@ def webhook():
             if s['step'] == 'select_product':
                 try:
                     num = int(txt)
-                    if 1 <= num <= 11:
+                    if 1 <= num <= 10:
                         key = f"p{num}"
-                        state[uid]['product_num'] = num
-                        state[uid]['price'] = PRODUCTS[key]['price']
+                        product = PRODUCTS[key]
+                        state[uid]['product_name'] = product['name']
+                        state[uid]['price'] = product['price']
                         state[uid]['step'] = 'customer_name'
-                        send_msg(cid, f"✅ পণ্য নির্বাচিত\n💰 দাম: {PRODUCTS[key]['price']} টাকা\n\nআপনার নাম বলুন:")
+                        
+                        send_msg(cid, f"✅ পণ্য নির্বাচিত\n💰 দাম: {product['price']} টাকা\n\nআপনার নাম বলুন:")
                     else:
-                        send_msg(cid, "❌ 1-11 এর মধ্যে নম্বর বলুন")
+                        send_msg(cid, "❌ 1-10 এর মধ্যে নম্বর বলুন")
                 except:
                     send_msg(cid, "❌ নম্বর বলুন (যেমন: 1, 2, 3...)")
             
@@ -153,38 +209,16 @@ def webhook():
                 advance_msg = f"""
 আপনার অর্ডার প্রায় সম্পূর্ণ!
 
-📦 পণ্য #: {s['product_num']}
+📦 পণ্য: {s['product_name']}
 💰 দাম: {s['price']} টাকা
 
 ⚠️ <b>প্রথমে 200 টাকা Advance Bikash এ পাঠান:</b>
 
 📱 <b>Bikash নম্বর: {BIKASH}</b>
 
-✅ <b>200 টাকা পাঠিয়ে এখানে screenshot পাঠান</b>
+✅ <b>এখানে 200 টাকার screenshot পাঠান</b>
                 """
                 send_msg(cid, advance_msg)
-            
-            elif s['step'] == 'screenshot':
-                total = s['price']
-                adv = 200
-                remain = total - adv
-                
-                msg_txt = f"""
-✅ অর্ডার কনফার্ম!
-
-📦 পণ্য #: {s['product_num']}
-👤 নাম: {s['customer_name']}
-📱 ফোন: {s['phone']}
-📍 ঠিকানা: {s['address']}
-
-💰 মোট দাম: {total} টাকা
-✅ Advance পেমেন্ট: 200 টাকা ✓
-⏳ বাকি (ডেলিভারিতে): {remain} টাকা
-
-ধন্যবাদ! 🙏
-                """
-                send_msg(cid, msg_txt)
-                del state[uid]
     
     return {'ok': True}
 
