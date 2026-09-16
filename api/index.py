@@ -80,6 +80,15 @@ def send_button_msg(cid, txt, buttons=None):
     requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", 
                  json={'chat_id': cid, 'text': txt, 'reply_markup': keyboard, 'parse_mode': 'HTML'})
 
+def set_bot_commands():
+    commands = [
+        {"command": "start", "description": "স্বাগত জানাবে"},
+        {"command": "products", "description": "পণ্য দেখুন"},
+        {"command": "order", "description": "অর্ডার করুন"}
+    ]
+    requests.post(f"https://api.telegram.org/bot{TOKEN}/setMyCommands", 
+                 json={"commands": commands})
+
 @app.route('/api/index', methods=['POST'])
 def webhook():
     data = request.json
@@ -172,6 +181,16 @@ def webhook():
     if txt == '/start':
         send_button_msg(cid, f"👋 আস্সালামু আলাইকুম {name}!\n\n🎉 LOZE BD এ স্বাগতম!")
     
+    elif txt == '/products':
+        send_msg(cid, "💡 আমাদের পণ্য:")
+        for key, product in PRODUCTS.items():
+            for img in product['images']:
+                send_msg(cid, f"{product['name']}\n💰 {product['price']} টাকা", img)
+    
+    elif txt == '/order':
+        state[uid] = {'step': 'select_product', 'name': name, 'cid': cid}
+        send_msg(cid, "🛒 কোন পণ্য অর্ডার করবেন?\n\n(নম্বর বলুন: 1-10)\n\nউদাহরণ: 1")
+    
     else:
         if uid in state:
             s = state[uid]
@@ -224,7 +243,9 @@ def webhook():
 
 @app.route('/', methods=['GET'])
 def home():
+    set_bot_commands()
     return '🤖 LOZE BD Bot'
 
 if __name__ == '__main__':
+    set_bot_commands()
     app.run()
